@@ -1,12 +1,11 @@
 import psutil
-import flask
-from flask import jsonify
+from flask import Flask, jsonify, render_template
 import os
 import datetime
 
-app = flask.Flask(__name__)
+app = Flask(__name__)
 
-# Configuración: Archivo de logs a monitorear en Ubuntu
+# Configuración
 LOG_FILE = "/var/log/syslog" 
 KEYWORDS = ["ERROR", "FAILED", "CRITICAL", "PANIC", "DENIED"]
 
@@ -26,24 +25,27 @@ def get_system_errors():
         return ["Archivo syslog no encontrado."]
     return errors
 
-@app.route('/') # Cambiamos la raíz para que muestre el reporte visual
-def index():
-    # Obtenemos los datos (puedes mover la lógica de health a una función aparte)
-    data = get_all_metrics() 
-    return render_template('report.html', data=data)
-
-@app.route('/api/health') # Dejamos la API JSON para scripts o K8s
-def api_health():
-    return jsonify(get_all_metrics())
-
 def get_all_metrics():
-    # Aquí mueves toda la lógica que ya tenías para generar el diccionario
-    # (CPU, RAM, Discos, Logs...)
-    # ...
-    return { "status": "OK", "metrics": {...}, ... }
-    # 3. Reporte final
-    return jsonify({
-        "timestamp": datetime.datetime.now().isoformat(),
+    """Reúne todas las métricas del sistema en un solo diccionario"""
+    cpu = psutil.cpu_percent(interval=1)
+    ram = psutil.virtual_memory().percent
+    
+    disks = []
+    for part in psutil.disk_partitions():
+        # Filtramos para ver solo discos reales, ignorando snaps y temporales
+        if 'loop' not in part.device and 'tmpfs' not in part.fstype:
+            try:
+                usage = psutil.disk_usage(part.mountpoint)
+                disks.append({
+                    "mountpoint": part.mountpoint,
+                    "total_gb": round(usage.total / (1024**3), 2),
+                    "used_percent": usage.percent
+                })
+            except PermissionError:
+                continue
+
+    return {
+        "timestamp": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
         "status": "OK" if cpu < 80 else "CRITICAL",
         "metrics": {
             "cpu_usage_percent": cpu,
@@ -51,8 +53,18 @@ def get_all_metrics():
         },
         "storage": disks,
         "recent_errors": get_system_errors()
-    })
+    }
+
+@app.route('/')
+def index():
+    """Ruta principal: Muestra el reporte visual en HTML"""
+    data = get_all_metrics()
+    return render_template('report.html', data=data)
+
+@app.route('/api/health')
+def api_health():
+    """Ruta API: Devuelve los datos en formato JSON para automatización"""
+    return jsonify(get_all_metrics())
 
 if __name__ == '__main__':
-    # El puerto 5000 es el estándar de Flask
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
