@@ -118,7 +118,7 @@ def send_email_report(html_content):
     # NOTA: En os.getenv va el nombre de la VARIABLE, no el valor directamente.
     # Para pruebas rápidas, puedes hardcodearlos así:
     SENDER_EMAIL = "naesaman1@gmail.com"
-    SENDER_PASSWORD = "eryl ectx xcul zhgh" # Usa 'Contraseña de Aplicación', no tu clave normal
+    SENDER_PASSWORD = "erylectxxculzhgh" # Usa 'Contraseña de Aplicación', no tu clave normal
     RECEIVER_EMAIL = "naesman1@hotmail.com"
 
     msg = MIMEMultipart()
