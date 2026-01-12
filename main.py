@@ -42,11 +42,18 @@ def get_system_errors():
     return errors
 
 def check_services():
+    logging.info("Verificando servicios críticos...")
     status = {}
     for service in SERVICES:
-        # systemctl is-active devuelve 'active' o 'inactive'
-        cmd = subprocess.run(['systemctl', 'is-active', service], capture_output=True, text=True)
-        status[service] = cmd.stdout.strip()
+        try:
+            # Ejecutamos el comando
+            cmd = subprocess.run(['systemctl', 'is-active', service], capture_output=True, text=True, timeout=5)
+            status[service] = cmd.stdout.strip()
+        except FileNotFoundError:
+            status[service] = "Error: systemctl no instalado"
+        except Exception as e:
+            logging.error(f"Error al chequear {service}: {e}")
+            status[service] = "Desconocido"
     return status
 
 def get_security_info():
