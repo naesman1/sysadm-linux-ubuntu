@@ -26,23 +26,21 @@ def get_system_errors():
         return ["Archivo syslog no encontrado."]
     return errors
 
-@app.route('/health', methods=['GET'])
-def health():
-    # 1. Uso de CPU y Memoria
-    cpu = psutil.cpu_percent(interval=1)
-    ram = psutil.virtual_memory().percent
-    
-    # 2. Filesystems (Discos)
-    disks = []
-    for part in psutil.disk_partitions():
-        if 'loop' not in part.device: # Ignorar snaps en Ubuntu
-            usage = psutil.disk_usage(part.mountpoint)
-            disks.append({
-                "mountpoint": part.mountpoint,
-                "total_gb": round(usage.total / (1024**3), 2),
-                "used_percent": usage.percent
-            })
+@app.route('/') # Cambiamos la raíz para que muestre el reporte visual
+def index():
+    # Obtenemos los datos (puedes mover la lógica de health a una función aparte)
+    data = get_all_metrics() 
+    return render_template('report.html', data=data)
 
+@app.route('/api/health') # Dejamos la API JSON para scripts o K8s
+def api_health():
+    return jsonify(get_all_metrics())
+
+def get_all_metrics():
+    # Aquí mueves toda la lógica que ya tenías para generar el diccionario
+    # (CPU, RAM, Discos, Logs...)
+    # ...
+    return { "status": "OK", "metrics": {...}, ... }
     # 3. Reporte final
     return jsonify({
         "timestamp": datetime.datetime.now().isoformat(),
